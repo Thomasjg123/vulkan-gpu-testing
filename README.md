@@ -75,31 +75,8 @@ sudo apt install -y build-essential libvulkan-dev vulkan-tools mesa-vulkan-drive
 - `mesa-vulkan-drivers` → AMD (RADV) and Intel (ANV) drivers, plus llvmpipe
 - `glslc` → shader compiler
 
-**NVIDIA on Debian/Ubuntu:** the proprietary driver provides the ICD. Install it
-instead of relying on Mesa for your GPU:
 
-```bash
-sudo apt install -y nvidia-driver-550    # or whatever version your distro offers
-```
 
-Keep `mesa-vulkan-drivers` installed too — it provides llvmpipe as a fallback.
-
-### Fedora
-
-```bash
-sudo dnf install -y gcc-c++ vulkan-loader-devel vulkan-tools mesa-vulkan-drivers glslc
-```
-
-NVIDIA: install the RPM Fusion NVIDIA driver, which ships the ICD.
-
-### Arch
-
-```bash
-sudo pacman -S --needed base-devel vulkan-icd-loader vulkan-headers vulkan-tools mesa shaderc
-```
-
-- `shaderc` provides `glslc`
-- NVIDIA: `nvidia-utils` provides the ICD; AMD/Intel are covered by `mesa`
 
 ### Optional but recommended: validation layers
 
@@ -109,11 +86,6 @@ errors. Install now and use them if anything behaves strangely later.
 ```bash
 # Debian/Ubuntu
 sudo apt install -y vulkan-validationlayers
-# Fedora
-sudo dnf install -y vulkan-validation-layers
-# Arch
-sudo pacman -S --needed vulkan-validation-layers
-```
 
 ---
 
