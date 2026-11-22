@@ -1,0 +1,332 @@
+// Optimized FP16 compute benchmark.
+//
+// The baseline fp16.comp uses scalar float16_t, which executes at the same
+// rate as FP32 on most GPUs (one FMA per lane per cycle). This shader uses
+// f16vec2, so the compiler emits packed half2 FMAs (v_pk_fma_f16 on AMD),
+// doing two FP16 FMAs per instruction and reaching the 2:1 FP16 rate.
+//
+// Tuning that mattered on an RX 6600 XT (Navi 23):
+//   - 32 independent f16vec2 accumulators = 64 in-flight FMAs, enough ILP
+//     to hide FMA latency without exhausting registers.
+//   - unroll 8: amortizes the loop counter/compare/branch overhead.
+//   - local_size_x = 512: best occupancy on this GPU.
+//   - 64 FP16 FMAs per thread per iteration (32 f16vec2).
+
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+
+layout(local_size_x = 512) in;
+
+layout(set = 0, binding = 0, std430) buffer Results {
+	float result[];
+};
+
+layout(push_constant) uniform Parameters {
+	uint iterations;
+} params;
+
+void main()
+{
+	uint id = gl_GlobalInvocationID.x;
+
+	// 32 independent two-lane accumulators (64 FP16 lanes total).
+	f16vec2 acc0 = f16vec2(0.100, 0.200);
+	f16vec2 acc1 = f16vec2(0.137, 0.241);
+	f16vec2 acc2 = f16vec2(0.174, 0.282);
+	f16vec2 acc3 = f16vec2(0.211, 0.323);
+	f16vec2 acc4 = f16vec2(0.248, 0.364);
+	f16vec2 acc5 = f16vec2(0.285, 0.405);
+	f16vec2 acc6 = f16vec2(0.322, 0.446);
+	f16vec2 acc7 = f16vec2(0.359, 0.487);
+	f16vec2 acc8 = f16vec2(0.396, 0.528);
+	f16vec2 acc9 = f16vec2(0.433, 0.569);
+	f16vec2 acc10 = f16vec2(0.470, 0.610);
+	f16vec2 acc11 = f16vec2(0.507, 0.200);
+	f16vec2 acc12 = f16vec2(0.544, 0.241);
+	f16vec2 acc13 = f16vec2(0.100, 0.282);
+	f16vec2 acc14 = f16vec2(0.137, 0.323);
+	f16vec2 acc15 = f16vec2(0.174, 0.364);
+	f16vec2 acc16 = f16vec2(0.211, 0.405);
+	f16vec2 acc17 = f16vec2(0.248, 0.446);
+	f16vec2 acc18 = f16vec2(0.285, 0.487);
+	f16vec2 acc19 = f16vec2(0.322, 0.528);
+	f16vec2 acc20 = f16vec2(0.359, 0.569);
+	f16vec2 acc21 = f16vec2(0.396, 0.610);
+	f16vec2 acc22 = f16vec2(0.433, 0.200);
+	f16vec2 acc23 = f16vec2(0.470, 0.241);
+	f16vec2 acc24 = f16vec2(0.507, 0.282);
+	f16vec2 acc25 = f16vec2(0.544, 0.323);
+	f16vec2 acc26 = f16vec2(0.100, 0.364);
+	f16vec2 acc27 = f16vec2(0.137, 0.405);
+	f16vec2 acc28 = f16vec2(0.174, 0.446);
+	f16vec2 acc29 = f16vec2(0.211, 0.487);
+	f16vec2 acc30 = f16vec2(0.248, 0.528);
+	f16vec2 acc31 = f16vec2(0.285, 0.569);
+
+	f16vec2 multiplier = f16vec2(0.999);
+	f16vec2 addition = f16vec2(0.001);
+
+	for (uint iter = 0; iter < params.iterations; iter += 8)
+	{
+		acc0 = fma(acc0, multiplier, addition);
+		acc1 = fma(acc1, multiplier, addition);
+		acc2 = fma(acc2, multiplier, addition);
+		acc3 = fma(acc3, multiplier, addition);
+		acc4 = fma(acc4, multiplier, addition);
+		acc5 = fma(acc5, multiplier, addition);
+		acc6 = fma(acc6, multiplier, addition);
+		acc7 = fma(acc7, multiplier, addition);
+		acc8 = fma(acc8, multiplier, addition);
+		acc9 = fma(acc9, multiplier, addition);
+		acc10 = fma(acc10, multiplier, addition);
+		acc11 = fma(acc11, multiplier, addition);
+		acc12 = fma(acc12, multiplier, addition);
+		acc13 = fma(acc13, multiplier, addition);
+		acc14 = fma(acc14, multiplier, addition);
+		acc15 = fma(acc15, multiplier, addition);
+		acc16 = fma(acc16, multiplier, addition);
+		acc17 = fma(acc17, multiplier, addition);
+		acc18 = fma(acc18, multiplier, addition);
+		acc19 = fma(acc19, multiplier, addition);
+		acc20 = fma(acc20, multiplier, addition);
+		acc21 = fma(acc21, multiplier, addition);
+		acc22 = fma(acc22, multiplier, addition);
+		acc23 = fma(acc23, multiplier, addition);
+		acc24 = fma(acc24, multiplier, addition);
+		acc25 = fma(acc25, multiplier, addition);
+		acc26 = fma(acc26, multiplier, addition);
+		acc27 = fma(acc27, multiplier, addition);
+		acc28 = fma(acc28, multiplier, addition);
+		acc29 = fma(acc29, multiplier, addition);
+		acc30 = fma(acc30, multiplier, addition);
+		acc31 = fma(acc31, multiplier, addition);
+		acc0 = fma(acc0, multiplier, addition);
+		acc1 = fma(acc1, multiplier, addition);
+		acc2 = fma(acc2, multiplier, addition);
+		acc3 = fma(acc3, multiplier, addition);
+		acc4 = fma(acc4, multiplier, addition);
+		acc5 = fma(acc5, multiplier, addition);
+		acc6 = fma(acc6, multiplier, addition);
+		acc7 = fma(acc7, multiplier, addition);
+		acc8 = fma(acc8, multiplier, addition);
+		acc9 = fma(acc9, multiplier, addition);
+		acc10 = fma(acc10, multiplier, addition);
+		acc11 = fma(acc11, multiplier, addition);
+		acc12 = fma(acc12, multiplier, addition);
+		acc13 = fma(acc13, multiplier, addition);
+		acc14 = fma(acc14, multiplier, addition);
+		acc15 = fma(acc15, multiplier, addition);
+		acc16 = fma(acc16, multiplier, addition);
+		acc17 = fma(acc17, multiplier, addition);
+		acc18 = fma(acc18, multiplier, addition);
+		acc19 = fma(acc19, multiplier, addition);
+		acc20 = fma(acc20, multiplier, addition);
+		acc21 = fma(acc21, multiplier, addition);
+		acc22 = fma(acc22, multiplier, addition);
+		acc23 = fma(acc23, multiplier, addition);
+		acc24 = fma(acc24, multiplier, addition);
+		acc25 = fma(acc25, multiplier, addition);
+		acc26 = fma(acc26, multiplier, addition);
+		acc27 = fma(acc27, multiplier, addition);
+		acc28 = fma(acc28, multiplier, addition);
+		acc29 = fma(acc29, multiplier, addition);
+		acc30 = fma(acc30, multiplier, addition);
+		acc31 = fma(acc31, multiplier, addition);
+		acc0 = fma(acc0, multiplier, addition);
+		acc1 = fma(acc1, multiplier, addition);
+		acc2 = fma(acc2, multiplier, addition);
+		acc3 = fma(acc3, multiplier, addition);
+		acc4 = fma(acc4, multiplier, addition);
+		acc5 = fma(acc5, multiplier, addition);
+		acc6 = fma(acc6, multiplier, addition);
+		acc7 = fma(acc7, multiplier, addition);
+		acc8 = fma(acc8, multiplier, addition);
+		acc9 = fma(acc9, multiplier, addition);
+		acc10 = fma(acc10, multiplier, addition);
+		acc11 = fma(acc11, multiplier, addition);
+		acc12 = fma(acc12, multiplier, addition);
+		acc13 = fma(acc13, multiplier, addition);
+		acc14 = fma(acc14, multiplier, addition);
+		acc15 = fma(acc15, multiplier, addition);
+		acc16 = fma(acc16, multiplier, addition);
+		acc17 = fma(acc17, multiplier, addition);
+		acc18 = fma(acc18, multiplier, addition);
+		acc19 = fma(acc19, multiplier, addition);
+		acc20 = fma(acc20, multiplier, addition);
+		acc21 = fma(acc21, multiplier, addition);
+		acc22 = fma(acc22, multiplier, addition);
+		acc23 = fma(acc23, multiplier, addition);
+		acc24 = fma(acc24, multiplier, addition);
+		acc25 = fma(acc25, multiplier, addition);
+		acc26 = fma(acc26, multiplier, addition);
+		acc27 = fma(acc27, multiplier, addition);
+		acc28 = fma(acc28, multiplier, addition);
+		acc29 = fma(acc29, multiplier, addition);
+		acc30 = fma(acc30, multiplier, addition);
+		acc31 = fma(acc31, multiplier, addition);
+		acc0 = fma(acc0, multiplier, addition);
+		acc1 = fma(acc1, multiplier, addition);
+		acc2 = fma(acc2, multiplier, addition);
+		acc3 = fma(acc3, multiplier, addition);
+		acc4 = fma(acc4, multiplier, addition);
+		acc5 = fma(acc5, multiplier, addition);
+		acc6 = fma(acc6, multiplier, addition);
+		acc7 = fma(acc7, multiplier, addition);
+		acc8 = fma(acc8, multiplier, addition);
+		acc9 = fma(acc9, multiplier, addition);
+		acc10 = fma(acc10, multiplier, addition);
+		acc11 = fma(acc11, multiplier, addition);
+		acc12 = fma(acc12, multiplier, addition);
+		acc13 = fma(acc13, multiplier, addition);
+		acc14 = fma(acc14, multiplier, addition);
+		acc15 = fma(acc15, multiplier, addition);
+		acc16 = fma(acc16, multiplier, addition);
+		acc17 = fma(acc17, multiplier, addition);
+		acc18 = fma(acc18, multiplier, addition);
+		acc19 = fma(acc19, multiplier, addition);
+		acc20 = fma(acc20, multiplier, addition);
+		acc21 = fma(acc21, multiplier, addition);
+		acc22 = fma(acc22, multiplier, addition);
+		acc23 = fma(acc23, multiplier, addition);
+		acc24 = fma(acc24, multiplier, addition);
+		acc25 = fma(acc25, multiplier, addition);
+		acc26 = fma(acc26, multiplier, addition);
+		acc27 = fma(acc27, multiplier, addition);
+		acc28 = fma(acc28, multiplier, addition);
+		acc29 = fma(acc29, multiplier, addition);
+		acc30 = fma(acc30, multiplier, addition);
+		acc31 = fma(acc31, multiplier, addition);
+		acc0 = fma(acc0, multiplier, addition);
+		acc1 = fma(acc1, multiplier, addition);
+		acc2 = fma(acc2, multiplier, addition);
+		acc3 = fma(acc3, multiplier, addition);
+		acc4 = fma(acc4, multiplier, addition);
+		acc5 = fma(acc5, multiplier, addition);
+		acc6 = fma(acc6, multiplier, addition);
+		acc7 = fma(acc7, multiplier, addition);
+		acc8 = fma(acc8, multiplier, addition);
+		acc9 = fma(acc9, multiplier, addition);
+		acc10 = fma(acc10, multiplier, addition);
+		acc11 = fma(acc11, multiplier, addition);
+		acc12 = fma(acc12, multiplier, addition);
+		acc13 = fma(acc13, multiplier, addition);
+		acc14 = fma(acc14, multiplier, addition);
+		acc15 = fma(acc15, multiplier, addition);
+		acc16 = fma(acc16, multiplier, addition);
+		acc17 = fma(acc17, multiplier, addition);
+		acc18 = fma(acc18, multiplier, addition);
+		acc19 = fma(acc19, multiplier, addition);
+		acc20 = fma(acc20, multiplier, addition);
+		acc21 = fma(acc21, multiplier, addition);
+		acc22 = fma(acc22, multiplier, addition);
+		acc23 = fma(acc23, multiplier, addition);
+		acc24 = fma(acc24, multiplier, addition);
+		acc25 = fma(acc25, multiplier, addition);
+		acc26 = fma(acc26, multiplier, addition);
+		acc27 = fma(acc27, multiplier, addition);
+		acc28 = fma(acc28, multiplier, addition);
+		acc29 = fma(acc29, multiplier, addition);
+		acc30 = fma(acc30, multiplier, addition);
+		acc31 = fma(acc31, multiplier, addition);
+		acc0 = fma(acc0, multiplier, addition);
+		acc1 = fma(acc1, multiplier, addition);
+		acc2 = fma(acc2, multiplier, addition);
+		acc3 = fma(acc3, multiplier, addition);
+		acc4 = fma(acc4, multiplier, addition);
+		acc5 = fma(acc5, multiplier, addition);
+		acc6 = fma(acc6, multiplier, addition);
+		acc7 = fma(acc7, multiplier, addition);
+		acc8 = fma(acc8, multiplier, addition);
+		acc9 = fma(acc9, multiplier, addition);
+		acc10 = fma(acc10, multiplier, addition);
+		acc11 = fma(acc11, multiplier, addition);
+		acc12 = fma(acc12, multiplier, addition);
+		acc13 = fma(acc13, multiplier, addition);
+		acc14 = fma(acc14, multiplier, addition);
+		acc15 = fma(acc15, multiplier, addition);
+		acc16 = fma(acc16, multiplier, addition);
+		acc17 = fma(acc17, multiplier, addition);
+		acc18 = fma(acc18, multiplier, addition);
+		acc19 = fma(acc19, multiplier, addition);
+		acc20 = fma(acc20, multiplier, addition);
+		acc21 = fma(acc21, multiplier, addition);
+		acc22 = fma(acc22, multiplier, addition);
+		acc23 = fma(acc23, multiplier, addition);
+		acc24 = fma(acc24, multiplier, addition);
+		acc25 = fma(acc25, multiplier, addition);
+		acc26 = fma(acc26, multiplier, addition);
+		acc27 = fma(acc27, multiplier, addition);
+		acc28 = fma(acc28, multiplier, addition);
+		acc29 = fma(acc29, multiplier, addition);
+		acc30 = fma(acc30, multiplier, addition);
+		acc31 = fma(acc31, multiplier, addition);
+		acc0 = fma(acc0, multiplier, addition);
+		acc1 = fma(acc1, multiplier, addition);
+		acc2 = fma(acc2, multiplier, addition);
+		acc3 = fma(acc3, multiplier, addition);
+		acc4 = fma(acc4, multiplier, addition);
+		acc5 = fma(acc5, multiplier, addition);
+		acc6 = fma(acc6, multiplier, addition);
+		acc7 = fma(acc7, multiplier, addition);
+		acc8 = fma(acc8, multiplier, addition);
+		acc9 = fma(acc9, multiplier, addition);
+		acc10 = fma(acc10, multiplier, addition);
+		acc11 = fma(acc11, multiplier, addition);
+		acc12 = fma(acc12, multiplier, addition);
+		acc13 = fma(acc13, multiplier, addition);
+		acc14 = fma(acc14, multiplier, addition);
+		acc15 = fma(acc15, multiplier, addition);
+		acc16 = fma(acc16, multiplier, addition);
+		acc17 = fma(acc17, multiplier, addition);
+		acc18 = fma(acc18, multiplier, addition);
+		acc19 = fma(acc19, multiplier, addition);
+		acc20 = fma(acc20, multiplier, addition);
+		acc21 = fma(acc21, multiplier, addition);
+		acc22 = fma(acc22, multiplier, addition);
+		acc23 = fma(acc23, multiplier, addition);
+		acc24 = fma(acc24, multiplier, addition);
+		acc25 = fma(acc25, multiplier, addition);
+		acc26 = fma(acc26, multiplier, addition);
+		acc27 = fma(acc27, multiplier, addition);
+		acc28 = fma(acc28, multiplier, addition);
+		acc29 = fma(acc29, multiplier, addition);
+		acc30 = fma(acc30, multiplier, addition);
+		acc31 = fma(acc31, multiplier, addition);
+		acc0 = fma(acc0, multiplier, addition);
+		acc1 = fma(acc1, multiplier, addition);
+		acc2 = fma(acc2, multiplier, addition);
+		acc3 = fma(acc3, multiplier, addition);
+		acc4 = fma(acc4, multiplier, addition);
+		acc5 = fma(acc5, multiplier, addition);
+		acc6 = fma(acc6, multiplier, addition);
+		acc7 = fma(acc7, multiplier, addition);
+		acc8 = fma(acc8, multiplier, addition);
+		acc9 = fma(acc9, multiplier, addition);
+		acc10 = fma(acc10, multiplier, addition);
+		acc11 = fma(acc11, multiplier, addition);
+		acc12 = fma(acc12, multiplier, addition);
+		acc13 = fma(acc13, multiplier, addition);
+		acc14 = fma(acc14, multiplier, addition);
+		acc15 = fma(acc15, multiplier, addition);
+		acc16 = fma(acc16, multiplier, addition);
+		acc17 = fma(acc17, multiplier, addition);
+		acc18 = fma(acc18, multiplier, addition);
+		acc19 = fma(acc19, multiplier, addition);
+		acc20 = fma(acc20, multiplier, addition);
+		acc21 = fma(acc21, multiplier, addition);
+		acc22 = fma(acc22, multiplier, addition);
+		acc23 = fma(acc23, multiplier, addition);
+		acc24 = fma(acc24, multiplier, addition);
+		acc25 = fma(acc25, multiplier, addition);
+		acc26 = fma(acc26, multiplier, addition);
+		acc27 = fma(acc27, multiplier, addition);
+		acc28 = fma(acc28, multiplier, addition);
+		acc29 = fma(acc29, multiplier, addition);
+		acc30 = fma(acc30, multiplier, addition);
+		acc31 = fma(acc31, multiplier, addition);
+	}
+
+	// Collapse the accumulators into one value and store it.
+	f16vec2 sum = acc0 + acc1 + acc2 + acc3 + acc4 + acc5 + acc6 + acc7 + acc8 + acc9 + acc10 + acc11 + acc12 + acc13 + acc14 + acc15 + acc16 + acc17 + acc18 + acc19 + acc20 + acc21 + acc22 + acc23 + acc24 + acc25 + acc26 + acc27 + acc28 + acc29 + acc30 + acc31;
+	result[id] = float(sum.x + sum.y);
+}

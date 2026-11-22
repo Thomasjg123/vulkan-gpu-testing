@@ -11,9 +11,13 @@
 #include <string>
 
 // Benchmark settings
-constexpr uint32_t WORKGROUP_SIZE = 256;
 constexpr uint32_t WORKGROUP_COUNT = 4096;
 constexpr uint32_t ITERATIONS = 4096;
+
+// Defaults match fp16.comp (scalar float16_t, 8 FMAs per iteration).
+// Override on the command line for other shaders, e.g. fp16_packed.comp.
+constexpr uint32_t DEFAULT_LOCAL_SIZE = 256;
+constexpr double DEFAULT_FMAS_PER_ITERATION = 8.0;
 
 void check(VkResult result, const char* operation)
 {
@@ -28,7 +32,7 @@ std::vector<uint32_t> loadShader(const char* filename)
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
 
     if (!file)
-        throw std::runtime_error("Could not open fp16.comp.spv");
+        throw std::runtime_error(std::string("Could not open ") + filename);
 
     size_t size = static_cast<size_t>(file.tellg());
 
@@ -81,11 +85,26 @@ int main(int argc, char** argv)
 
     try
     {
-        // Select GPU from command line. Default is GPU #3.
+        // Usage:
+        //   ./fp16_benchmark [gpuIndex] [shader.spv] [fmasPerIteration] [localSize]
+        //
+        // Defaults are GPU #3, fp16.comp.spv, 8 FMAs, 256 threads, which match
+        // the baseline fp16.comp. For the packed shader use:
+        //   ./fp16_benchmark 0 fp16_packed.comp.spv 64 512
         uint32_t gpuIndex = 3;
 
         if (argc > 1)
             gpuIndex = static_cast<uint32_t>(std::stoi(argv[1]));
+
+        const char* shaderPath =
+            argc > 2 ? argv[2] : "fp16.comp.spv";
+
+        double fmasPerIteration =
+            argc > 3 ? std::stod(argv[3]) : DEFAULT_FMAS_PER_ITERATION;
+
+        uint32_t localSize =
+            argc > 4 ? static_cast<uint32_t>(std::stoi(argv[4]))
+                     : DEFAULT_LOCAL_SIZE;
 
         // Create Vulkan instance.
         VkApplicationInfo appInfo{};
@@ -196,7 +215,7 @@ int main(int argc, char** argv)
 
         // Allocate result buffer.
         const uint32_t invocationCount =
-            WORKGROUP_SIZE * WORKGROUP_COUNT;
+            localSize * WORKGROUP_COUNT;
 
         const VkDeviceSize bufferSize =
             static_cast<VkDeviceSize>(invocationCount) * sizeof(float);
@@ -267,7 +286,7 @@ int main(int argc, char** argv)
               "vkCreatePipelineLayout");
 
         // Load compiled compute shader.
-        auto shaderCode = loadShader("fp16.comp.spv");
+        auto shaderCode = loadShader(shaderPath);
 
         VkShaderModuleCreateInfo shaderInfo{};
         shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -435,17 +454,20 @@ int main(int argc, char** argv)
             static_cast<double>(ticks) *
             properties.limits.timestampPeriod / 1.0e9;
 
-        // Eight FP16 FMA operations per invocation per iteration.
+        // fmasPerIteration counts scalar FMAs per thread per iteration.
         // Each FMA counts as two floating-point operations.
         double totalFlops =
             static_cast<double>(invocationCount) *
-            ITERATIONS * 8.0 * 2.0;
+            ITERATIONS * fmasPerIteration * 2.0;
 
         double tflops =
             totalFlops / elapsedSeconds / 1.0e12;
 
         std::cout << "\n========== FP16 BENCHMARK ==========\n";
         std::cout << "GPU: " << properties.deviceName << "\n";
+        std::cout << "Shader: " << shaderPath << "\n";
+        std::cout << "Local size: " << localSize << "\n";
+        std::cout << "FMAs/iter/thread: " << fmasPerIteration << "\n";
         std::cout << "Invocations: " << invocationCount << "\n";
         std::cout << "Iterations: " << ITERATIONS << "\n";
         std::cout << "Elapsed GPU time: "
